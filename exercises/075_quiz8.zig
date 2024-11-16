@@ -49,7 +49,7 @@ const Path = struct {
 //
 // Please fill in the body of this function!
 fn makePath(from: *Place, to: *Place, dist: u8) Path {
-
+    return Path{ .from = from, .to = to, .dist = dist };
 }
 
 // Using our new function, these path definitions take up considerably less
@@ -149,6 +149,11 @@ const HermitsNotebook = struct {
         }
     }
 };
+
+pub var global_test_var: u16 = 15;
+
+const myGlobalVar: u32 = 42;
+const anotherGlobalVar: f32 = 3.14;
 
 pub fn main() void {
     const start = &a; // Archer's Point
