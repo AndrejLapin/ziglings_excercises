@@ -52,14 +52,88 @@ fn makePath(from: *Place, to: *Place, dist: u8) Path {
     return Path{ .from = from, .to = to, .dist = dist };
 }
 
+fn calcPathSize(string: []const u8) usize {
+    const indexOf = @import("std").mem.indexOf;
+
+    var path_size = 0;
+    const start_of_expression = indexOf(u8, string[0..], "(").?;
+    const end_of_expression = indexOf(u8, string[start_of_expression + 1 ..], ")").? + start_of_expression + 1;
+
+    var pos = start_of_expression + 1;
+    while (pos < end_of_expression) : (pos += 1) {
+        if (string[pos] == ' ') continue;
+        const possible_start_of_distance = indexOf(u8, string[pos..], "[");
+        if (possible_start_of_distance == null) break;
+        const start_of_distance = possible_start_of_distance.? + pos;
+        const end_of_distance = indexOf(u8, string[start_of_distance + 1 ..], "]").? + start_of_distance + 1;
+        pos = end_of_distance;
+        path_size += 1;
+    }
+    return path_size;
+}
+
+fn constructPaths(comptime string: []const u8) [calcPathSize(string)]Path {
+    const indexOf = @import("std").mem.indexOf;
+    const parseInt = @import("std").fmt.parseInt;
+    const ParseIntError = @import("std").fmt.ParseIntError;
+
+    const size_of_return_array = calcPathSize(string); // if calling this implicitly don't know how to call only once
+    var constructed_array: [size_of_return_array]Path = undefined;
+    var current_item = 0;
+
+    const first_space = indexOf(u8, string[0..], " ");
+    const start_of_arrow = indexOf(u8, string[0..], "->").?;
+    const start_from = if (first_space != null and start_of_arrow > first_space.?) first_space.? else start_of_arrow;
+
+    const from: *Place = &@field(@This(), string[0..start_from]);
+
+    const end_of_arrow = start_of_arrow + 2;
+    const start_of_expression = indexOf(u8, string[end_of_arrow..], "(").? + end_of_arrow;
+    const end_of_expression = indexOf(u8, string[start_of_expression + 1 ..], ")").? + start_of_expression + 1;
+
+    var pos = start_of_expression + 1;
+    while (pos < end_of_expression) : (pos += 1) {
+        if (string[pos] == ' ') continue;
+        const possible_start_of_distance = indexOf(u8, string[pos..], "[");
+        if (possible_start_of_distance == null) {
+            if (current_item < size_of_return_array) {
+                @compileError("Wrong path format!");
+            }
+            break;
+        }
+        const start_of_distance = possible_start_of_distance.? + pos;
+        const end_of_distance = indexOf(u8, string[start_of_distance + 1 ..], "]").? + start_of_distance + 1;
+        const to: *Place = &@field(@This(), string[pos..start_of_distance]);
+        const distance_slice = string[start_of_distance + 1 .. end_of_distance];
+        const dist = parseInt(u8, distance_slice, 10) catch |err| switch (err) {
+            ParseIntError.InvalidCharacter => @compileError("Trying to parse invalid characters as int!"),
+            ParseIntError.Overflow => @compileError("Parsed value overflow!"),
+        };
+        constructed_array[current_item] = Path{ .from = from, .to = to, .dist = dist };
+        current_item += 1;
+        pos = end_of_distance;
+    }
+    return constructed_array;
+}
+
+// const test_path = constructPaths("b -> (a[2] d[1])");
 // Using our new function, these path definitions take up considerably less
 // space in our program now!
-const a_paths = [_]Path{makePath(&a, &b, 2)};
-const b_paths = [_]Path{ makePath(&b, &a, 2), makePath(&b, &d, 1) };
-const c_paths = [_]Path{ makePath(&c, &d, 3), makePath(&c, &e, 2) };
-const d_paths = [_]Path{ makePath(&d, &b, 1), makePath(&d, &c, 3), makePath(&d, &f, 7) };
-const e_paths = [_]Path{ makePath(&e, &c, 2), makePath(&e, &f, 1) };
-const f_paths = [_]Path{makePath(&f, &d, 7)};
+// const a_paths = [_]Path{makePath(&a, &b, 2)};
+// const b_paths = [_]Path{ makePath(&b, &a, 2), makePath(&b, &d, 1) };
+// const c_paths = [_]Path{ makePath(&c, &d, 3), makePath(&c, &e, 2) };
+// const d_paths = [_]Path{ makePath(&d, &b, 1), makePath(&d, &c, 3), makePath(&d, &f, 7) };
+// const e_paths = [_]Path{ makePath(&e, &c, 2), makePath(&e, &f, 1) };
+// const f_paths = [_]Path{makePath(&f, &d, 7)};
+
+// SUPER BONUS!
+const a_paths = constructPaths("a -> (b[2])");
+const b_paths = constructPaths("b -> (a[2] d[1])");
+const c_paths = constructPaths("c -> (d[3] e[2])");
+const d_paths = constructPaths("d -> (b[1] c[3] f[7])");
+const e_paths = constructPaths("e -> (c[2] f[1])");
+const f_paths = constructPaths("f -> (d[7])");
+
 //
 // But is it more readable? That could be argued either way.
 //
@@ -150,11 +224,6 @@ const HermitsNotebook = struct {
     }
 };
 
-pub var global_test_var: u16 = 15;
-
-const myGlobalVar: u32 = 42;
-const anotherGlobalVar: f32 = 3.14;
-
 pub fn main() void {
     const start = &a; // Archer's Point
     const destination = &f; // Fox Pond
@@ -174,6 +243,10 @@ pub fn main() void {
     inline for (letters) |letter| {
         @field(@This(), letter).paths = @field(@This(), letter ++ "_paths")[0..];
     }
+
+    // print("Original \"a\" location - {}\nLocation from reflection - {}\n", .{ @intFromPtr(&a), @intFromPtr(&@field(@This(), "a")) });
+
+    // print("Test path len {}\n", .{test_path.len});
 
     var notebook = HermitsNotebook{};
     var working_note = NotebookEntry{
