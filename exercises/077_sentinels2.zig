@@ -39,6 +39,11 @@ const print = @import("std").debug.print;
 const WeirdContainer = struct {
     data: [*]const u8,
     length: usize,
+
+    // the only important anytype part of this type is the length of array
+    fn create(string: anytype) WeirdContainer {
+        return WeirdContainer{ .data = string, .length = string.len };
+    }
 };
 
 pub fn main() void {
@@ -50,17 +55,19 @@ pub fn main() void {
     //
     // Luckily, the 'length' field makes it possible to still
     // work with this value.
-    const foo = WeirdContainer{
-        .data = "Weird Data!",
-        .length = 11,
-    };
+    const foo = WeirdContainer.create("Weird Data!");
+
+    // const foo = WeirdContainer{
+    //     .data = "Weird Data!",
+    //     .length = 11,
+    // };
 
     // How do we get a printable value from 'foo'? One way is to
     // turn it into something with a known length. We do have a
     // length... You've actually solved this problem before!
     //
     // Here's a big hint: do you remember how to take a slice?
-    const printable = ???;
+    const printable = foo.data[0..foo.length];
 
     print("{s}\n", .{printable});
 }
